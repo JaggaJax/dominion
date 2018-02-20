@@ -92,7 +92,7 @@ class PlayerState:
         all_cards[card_name].perform_action(self)
         if 'Attack' in all_cards[card_name].types:
             for player in player_states.values():
-                if player != self and all_cards['Curse'].count > 0:
+                if player != self:
                     player.process_attack(all_cards[card_name].perform_attack)
 
     def end_turn(self):
@@ -103,13 +103,13 @@ class PlayerState:
 
     def draw_cards(self, num = 1):
         for _ in range(num):
-            self.hand_cards.append(self.draw_stack[0])
-            #print('Drew {} from stack.'.format(self.draw_stack[0]))
-            del(self.draw_stack[0])
             if len(self.draw_stack) == 0:
                 self.draw_stack = self.played_stack[:]
                 self.played_stack.clear()
                 shuffle(self.draw_stack)
+            self.hand_cards.append(self.draw_stack[0])
+            #print('Drew {} from stack.'.format(self.draw_stack[0]))
+            del(self.draw_stack[0])
 
     def availible_actions(self):
         if self.num_actions > 0:
@@ -205,6 +205,8 @@ def action_laboratory(state):
 def action_chappel(state):
     for _ in range(4):
         print('Chose card to discard...')
+        if len(state.hand_cards) == 0:
+            return
         print(', '.join(["{}: {}".format(val+1, i) for val, i in enumerate(state.hand_cards)]) + ', 0: None')
         input_number = int(input())
         if input_number not in range(1, len(state.hand_cards)+1):
@@ -214,7 +216,7 @@ def action_chappel(state):
 def action_cellar(state):
     state.num_actions += 1
     count = 0
-    for _ in range(len(state.hand_cards))
+    for _ in range(len(state.hand_cards)):
         print('Chose card to lay aside...')
         print(', '.join(["{}: {}".format(val+1, i) for val, i in enumerate(state.hand_cards)]) + ', 0: None')
         input_number = int(input())
@@ -240,15 +242,66 @@ def action_workshop(state):
     print(', '.join(["{}: {}".format(val+1, i) for val, i in enumerate(availible_buys_sorted)]) + ', 0: None')
     input_number = int(input())
     if input_number not in range(1, len(availible_buys_sorted)+1):
-        break
+        return
     print('Chose buy {}: {}'.format(input_number, availible_buys_sorted[input_number - 1]))
-    self.get_card(buys[input_number - 1])
+    state.get_card(availible_buys_sorted[input_number - 1])
 
-def action_burocrat(state):
+def action_bureaucrat(state):
     if all_cards['Silver'].count > 0:
         state.draw_stack.insert(0, 'Silver')
         all_cards['Silver'].count -= 1
-        #TODO: finish burocrat
+
+def attack_bureaucrat(state):
+    point_cards_in_hand = [card_name for card_name in state.hand_cards if 'Point' in all_cards[card_name].types]
+    if len(point_cards_in_hand) == 0:
+        print('No point card on hand')
+        return
+    print('Select point card to put on draw pile...')
+    print(', '.join(['{}: {}'.format(val, i) for val, i in enumerate(point_cards_in_hand)]))
+    input_number = int(input())
+    if input_number not in range(1, len(point_cards_in_hand+1)):
+        input_number = 1        
+    chosen_card = point_cards_in_hand[input_number-1]
+    print('Chose to put {} on draw pile'.format(chosen_card))
+    state.draw_stack.insert(0, chosen_card)
+    state.hand_cards.remove(chosen_card)
+
+def perform_decision(message, options, allow_none = True):
+    if len(options) == 0:
+        return 'None'
+    print(message)
+    options_string = ', '.join('{}: {}'.format(val + 1, i) for val, i in enumerate(options))
+    if allow_none:
+        options_string += ', 0: None'
+    print(options_string)
+    input_number = int(input())
+    if input_number not in range(1, len(options)+1):
+        return 'None' if allow_none else options[0] 
+    return options[input_number-1]
+
+
+def action_rebuilding(state):
+    card_to_discard = perform_decision('Pick a card to discard...', state.hand_cards)
+    state.hand_cards.remove(card_to_discard)
+    availible_buys_unsorted = [card_name for card_name, card in all_cards.items() if card.cost <= all_cards[card_to_discard].cost + 2]
+    buy = perform_decision('Pick a card to buy...', sorted(availible_buys_unsorted, key = lambda c: all_cards[c].cost, reverse=True), False)
+    state.get_card(buy)
+
+def action_throneroom(state):
+    actions_on_hand = [card_name for card_name in state.hand_cards if 'Action' in all_cards[card_name].types]
+    action_card = perform_decision('Chose action to perform twice...', actions_on_hand)
+    state.num_actions += 2
+    print('Playing card {} 1/2'.format(action_card))
+    state.play_card(action_card)
+    state.active_cards.remove(action_card)
+    state.hand_cards.append(action_card)
+    print('Playing card {} 2/2'.format(action_card))
+    state.play_card(action_card)
+
+def action_spy(state):
+    state.num_buys += 1
+    state.draw_cards(1)
+
 
 all_cards = {
     'Copper' : Card(['Money'], 0, count_money = lambda state: 1, count = 50),
@@ -267,7 +320,10 @@ all_cards = {
     'Chancelor' : Card(['Action'], 3, perform_action = action_chancellor), 
     'Village' : Card(['Action'], 3, perform_action = action_village),
     'Lumberjack' : Card(['Action'], 3, perform_action = action_lumberjack),
-    'Workshop' : Card(['Action'], perform_action = action_workshop),
+    'Workshop' : Card(['Action'], 3, perform_action = action_workshop),
+    'Bureaucrat': Card(['Action, Attack'], 4, perform_action = action_bureaucrat, perform_attack = attack_bureaucrat),
+    'Rebuilding': Card(['Action'], 4, perform_action = action_rebuilding),
+    'Thone Room': Card(['Action'], 4, perform_action = action_throneroom),
     'Forge' : Card(['Action'], 4, perform_action = action_forge),
     'Fair' : Card(['Action'], 5, perform_action = action_fair),
     'Market' : Card(['Action'], 5, perform_action = action_market),
@@ -289,7 +345,7 @@ def init_game(player_names):
     draw_stack = ['Copper'] * 7 + ['Estate'] * 3
     for player in player_names:
         shuffle(draw_stack)
-        player_states[player] = PlayerState(['Chappel'], draw_stack[:], [])
+        player_states[player] = PlayerState([], draw_stack[:], [])
         player_states[player].draw_cards(5)
 
 def check_for_end_condition():
