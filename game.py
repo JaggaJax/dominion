@@ -2,6 +2,9 @@ import itertools
 import random
 from random import shuffle
 
+import os
+clear = lambda: os.system('cls' if os.name=='nt' else 'clear')
+
 all_cards = {}
 player_states = {}
 base_cards = {}
@@ -21,6 +24,10 @@ class PlayerState:
         self.name = name
 
     def perform_decision(self, message, options, allow_none = True):
+        #clear()
+        #self.print_state()
+        print_state()
+
         if len(options) == 0:
             return 'None'
         print(message)
@@ -127,13 +134,10 @@ class PlayerState:
         buys = self.availible_buys()
         while len(buys) > 0:
             self.print_state()
-            print('Select buy option...')
-            buys = self.availible_buys()
-            print(', '.join(["{}: {}".format(val+1, i) for val, i in enumerate(buys)]) + ', 0: None')
-            input_number = int(input())
-            if input_number not in range(1, len(buys)+1):
+            choice = self.perform_decision('Select buy option...', buys, True)
+            if choice == 'None':
                 break
-            self.buy_card(buys[input_number - 1])
+            self.buy_card(choice)
             buys = self.availible_buys()
 
         self.end_turn()
@@ -174,9 +178,36 @@ def check_for_end_condition():
 def print_all_cards():
     print(', '.join(['{} ({})'.format(card_name, card.count) for card_name, card in all_cards.items()]))
 
+from termcolor import colored
+def coloredCardsString(card_names, atribs = None):
+    string_list = []
+    for card_name in card_names:
+        card_types = all_cards[card_name].types
+        if 'Money' in card_types:
+            string_list.append(colored(card_name, 'yellow', attrs = atribs))
+        elif 'Point' in card_types:
+            string_list.append(colored(card_name, 'green', attrs = atribs))
+        else:
+            string_list.append(colored(card_name, 'red', attrs = atribs))
+    return '[{}]'.format(' '.join(string_list))
+
+active_player = ''
+def print_state():
+    clear()
+    for player in player_states.values():
+        is_active = player.name == active_player 
+        print(colored(player.name, 'red' if is_active else 'white'), '\tDraw:', coloredCardsString(player.draw_stack), ' Played:', coloredCardsString(player.played_stack))
+        print('{} actions left. {} gold availible. {} buys availible. {} total points.'.format(player.num_actions, \
+            player.num_money, player.num_buys, player.count_points()), coloredCardsString(player.hand_cards, ['bold']), \
+            coloredCardsString(player.active_cards))
+        print()
+
+
 def do_single_turn():
+    global active_player
     for player_name, player in player_states.items():
         print("\n---Player {}'s turn---".format(player_name))
+        active_player = player_name
         player.do_single_turn()
         if check_for_end_condition():
             return True
@@ -191,5 +222,5 @@ def main_loop():
         game_over = do_single_turn()
         turn_counter += 1
 
-init_game(['Simon'])
+init_game(['Simon', 'Christin', 'Sarah'])
 main_loop()

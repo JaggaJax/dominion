@@ -126,6 +126,8 @@ def action_rebuilding(player):
 def action_throneroom(player):
     actions_on_hand = [card_name for card_name in player.hand_cards if 'Action' in all_cards[card_name].types]
     action_card = player.perform_decision('Chose action to perform twice...', actions_on_hand)
+    if action_card == 'None':
+        return
     player.num_actions += 2
     print('Playing card {} 1/2'.format(action_card))
     player.play_card(action_card)
@@ -244,7 +246,7 @@ optional_cards = {
     'Militia' : Card(['Action', 'Attack'], 4, perform_action = lambda player: action_militia, perform_attack = attack_militia),
     'Forge' : Card(['Action'], 4, perform_action = action_forge),
     'Spy' : Card(['Action', 'Attack'], 4, perform_action = action_spy, perform_attack = attack_spy),
-    'Thone Room': Card(['Action'], 4, perform_action = action_throneroom),
+    'Thoneroom': Card(['Action'], 4, perform_action = action_throneroom),
     'Rebuilding': Card(['Action'], 4, perform_action = action_rebuilding),
     'Library' : Card(['Action'], 5, perform_action = action_library),
     'Witch' : Card(['Action', 'Attack'], 5, perform_action = lambda player: player.draw_cards(2), perform_attack = lambda player, opponent: opponent.get_card('Curse') if player != opponent else None),
