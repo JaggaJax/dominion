@@ -85,9 +85,8 @@ def action_cellar(player):
 
 def action_chancellor(player):
     player.num_money += 2
-    print('1: Lay aside entire draw pile, 0: Leave draw pile.')    
-    input_number = int(input())
-    if input_number == 1:
+    choice = player.perform_decision('Lay aside entire draw pile?', ['Yes', 'No'], False)
+    if choice == 'Yes':
         player.played_stack += player.draw_stack
         player.draw_stack.clear()
 
@@ -112,7 +111,7 @@ def attack_bureaucrat(player, opponent):
     if len(point_cards_in_hand) == 0:
         print('No point card on hand')
         return
-    decision = player.perform_decision('Select point card to put on draw pile...', point_cards_in_hand, False)
+    decision = opponent.perform_decision('Select point card to put on draw pile...', point_cards_in_hand, False)
     print('Chose to put {} on draw pile'.format(decision))
     opponent.draw_stack.insert(0, decision)
     opponent.hand_cards.remove(decision)

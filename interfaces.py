@@ -14,7 +14,6 @@ class HumanInterface(GeneralInterface):
         super().__init__(name)
 
     def decide(self, message, options, tag = 'DEFAULT'):
-        print(self.player_name, ', ', message)
         options_string = ', '.join('{}: {}'.format(val + 1 if i != 'None' else 0, i) for val, i in enumerate(options))
         print(options_string)
         input_number = int(input())
@@ -27,11 +26,10 @@ class SimpleBot(GeneralInterface):
         super().__init__(name)
 
     def decide(self, message, options, tag = 'DEFAULT'):
-        print(self.player_name, ', ', message)
         options_string = ', '.join('{}: {}'.format(val + 1 if i != 'None' else 0, i) for val, i in enumerate(options))
-        print(options_string)
-        print('{} chooses {}'.format(self.player_name, options[0]))
-        input('Press return...')
+        #print(options_string)
+        #print('{} chooses {}'.format(self.player_name, options[0]))
+        #input('Press return...')
         return options[0]
 
 class MoneyGrabber(GeneralInterface):
@@ -39,15 +37,14 @@ class MoneyGrabber(GeneralInterface):
         super().__init__(name)
 
     def decide(self, message, options, tag = 'DEFAULT'):
-        print(self.player_name, ', ', message)
         options_string = ', '.join('{}: {}'.format(val + 1 if i != 'None' else 0, i) for val, i in enumerate(options))
-        print(options_string)
+        #print(options_string)
 
         choice_priority = ['Province', 'Gold', 'Silver', 'None', options[0]]
         for choice in choice_priority:
             if choice in options:
-                print('{} chooses {}'.format(self.player_name, choice))
-                input('Press return...')
+                #print('{} chooses {}'.format(self.player_name, choice))
+                #input('Press return...')
                 return choice
 
 

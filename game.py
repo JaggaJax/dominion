@@ -30,12 +30,16 @@ class PlayerState:
         self.interface = interface
 
     def perform_decision(self, message, options, allow_none = True):
-        print_state()
+        #print_state()
+        #print('{}, {}'.format(self.name, message))
         if allow_none:
             options.append('None')
         if len(options) == 0:
             return 'None'
-        choice = self.interface.decide(message, options, 'DEFAULT')
+        if len(options) == 1:
+            choice = options[0]
+        else:
+            choice = self.interface.decide(message, options, 'DEFAULT')
         return choice
         
     def play_card(self, card_name):
@@ -124,7 +128,7 @@ class PlayerState:
         self.start_turn()
         actions = self.availible_actions()
         while len(actions) > 0:
-            self.print_state()
+            #self.print_state()
             choice = self.perform_decision('Perform action...', actions, True)
             if choice == 'None':
                 break
@@ -135,7 +139,7 @@ class PlayerState:
 
         buys = self.availible_buys()
         while len(buys) > 0:
-            self.print_state()
+            #self.print_state()
             choice = self.perform_decision('Select buy option...', buys, True)
             if choice == 'None':
                 break
@@ -143,7 +147,7 @@ class PlayerState:
             buys = self.availible_buys()
 
         self.end_turn()
-        self.print_state()
+        #self.print_state()
 
 turn_counter = 0
 
@@ -209,7 +213,7 @@ def print_all_cards():
 
 active_player = ''
 def print_state():
-    clear()
+    #clear()
     print(colored('\t\t-------------Turn {}-------------'.format(turn_counter), 'red', attrs = ['bold']))
     print(print_all_cards())
     for player in player_states.values():
@@ -236,9 +240,10 @@ def main_loop():
     game_over = False
     while not game_over:
         print('\n-----Turn {}-----'.format(turn_counter))
-        print_all_cards()
+        #print_all_cards()
         game_over = do_single_turn()
         turn_counter += 1
 
-init_game([('Simon', HumanInterface), ('Simpleton', SimpleBot), ('Moneyman', MoneyGrabber)] )
+#init_game([('Simon', HumanInterface), ('Simpleton', SimpleBot), ('Moneyman', MoneyGrabber), ('Moneyman2', MoneyGrabber)] )
+init_game([('Simpleton', SimpleBot), ('Moneyman', MoneyGrabber), ('Moneyman2', MoneyGrabber)] )
 main_loop()
