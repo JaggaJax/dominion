@@ -32,6 +32,8 @@ def action_forge(player):
 def action_mine(player):
     all_money_cards = [card_name for card_name, card in all_cards.items() if 'Money' in card.types]
     discard_options = [card_name for card_name in all_money_cards if card_name in player.hand_cards]
+    if len(discard_options) == 0:
+        return
     discarded_card = player.perform_decision('Select money card to discard...', discard_options, True)
     buy_options = [card_name for card_name in all_money_cards if all_cards[discarded_card].cost + 3 == all_cards[card_name].cost]
     if len(buy_options) != 1:
@@ -54,9 +56,9 @@ def action_fair(player):
 def action_council(player):
     player.draw_cards(4)
     player.num_buys += 1
-    for player in player_states.values():
-        if player != player:
-            player.draw_cards()
+    for opponent in player_states.values():
+        if opponent != player:
+            opponent.draw_cards(1)
 
 def action_laboratory(player):
     player.draw_cards(2)
@@ -64,7 +66,7 @@ def action_laboratory(player):
 
 def action_chappel(player):
     for _ in range(4):
-        card_to_discard = player.perform_decision('Chose card to discard...', player.hand_cards, True)
+        card_to_discard = player.perform_decision('Chose card to discard...', player.hand_cards[:], True)
         if card_to_discard == 'None':
             return
         player.hand_cards.remove(card_to_discard)
@@ -73,7 +75,7 @@ def action_cellar(player):
     player.num_actions += 1
     count = 0
     for _ in range(len(player.hand_cards)):
-        desicion = player.perform_decision('Chose card to lay aside...', player.hand_cards, True)
+        desicion = player.perform_decision('Chose card to lay aside...', player.hand_cards[:], True)
         if desicion == 'None':
             return
         player.played_stack.append(desicion)
@@ -106,20 +108,23 @@ def action_bureaucrat(player):
 def attack_bureaucrat(player, opponent):
     if player == opponent:
         return
-    point_cards_in_hand = [card_name for card_name in player.hand_cards if 'Point' in all_cards[card_name].types]
+    point_cards_in_hand = [card_name for card_name in opponent.hand_cards if 'Point' in all_cards[card_name].types]
     if len(point_cards_in_hand) == 0:
         print('No point card on hand')
         return
     decision = player.perform_decision('Select point card to put on draw pile...', point_cards_in_hand, False)
     print('Chose to put {} on draw pile'.format(decision))
-    player.draw_stack.insert(0, decision)
-    player.hand_cards.remove(decision)
-
+    opponent.draw_stack.insert(0, decision)
+    opponent.hand_cards.remove(decision)
 
 def action_rebuilding(player):
-    card_to_discard = player.perform_decision('Pick a card to discard...', player.hand_cards)
+    card_to_discard = player.perform_decision('Pick a card to discard...', player.hand_cards[:])
+    if card_to_discard == 'None':
+        return
     player.hand_cards.remove(card_to_discard)
     availible_buys_unsorted = [card_name for card_name, card in all_cards.items() if card.cost <= all_cards[card_to_discard].cost + 2]
+    if len(availible_buys_unsorted) == 0:
+        return
     buy = player.perform_decision('Pick a card to buy...', sorted(availible_buys_unsorted, key = lambda c: all_cards[c].cost, reverse=True), False)
     player.get_card(buy)
 
@@ -146,7 +151,7 @@ def attack_spy(player, opponent):
         print('Player {} has empty draw stack.'.format(opponent.name))
         return
     top_card = opponent.draw_stack[0]
-    choice = player.perform_decision('Let player {} discard or keep card {}'.format(player.name, top_card), \
+    choice = player.perform_decision('Let player {} discard or keep card {}'.format(opponent.name, top_card), \
         options, False)
     if choice == 'Discard':
         opponent.played_stack.append(top_card)
@@ -159,7 +164,7 @@ def attack_militia(player, opponent):
     if player == opponent:
         return
     for _ in range(3, len(opponent.hand_cards)):
-        card_to_discard = opponent.perform_decision('Choose card to discard...', opponent.hand_cards, False)
+        card_to_discard = opponent.perform_decision('Choose card to discard...', opponent.hand_cards[:], False)
         opponent.hand_cards.remove(card_to_discard)
         opponent.played_stack.append(card_to_discard)
 
@@ -173,7 +178,9 @@ def action_moneylender(player):
 def action_feast(player):
     player.active_cards.remove('Feast')
     buy_options = [card_name for card_name, card in all_cards.items() if card.cost <= 5 and card.count > 0]
+    print('Feast buy options (Debug): ', buy_options)
     buy_options.sort(key = lambda card_name: all_cards[card_name].cost, reverse=True)
+    print('Feast buy options sorted (Debug): ', buy_options)
     choice = player.perform_decision('Pick card to buy...', buy_options, True)
     if choice == 'None':
         return
@@ -189,7 +196,7 @@ def attack_thief(player, opponent):
         card = opponent.draw_stack[0]
     else:
         card = player.perform_decision('Pick money card...', opponent.draw_stack[:2], False)
-        opponent.draw_stack.remove[card]
+        opponent.draw_stack.remove(card)
         steal = player.perform_decision('Steal or leave card?', ['Steal', 'Leave'], False)
         if steal == 'Steal':
             player.played_stack.append(card)
@@ -200,7 +207,7 @@ def action_adventurer(player):
         player.restockDrawIfNeeded()
         card_name = player.draw_stack[0]
         player.draw_stack.remove(card_name)
-        if 'Money' in all_cards[card_name]:
+        if 'Money' in all_cards[card_name].types:
             count += 1
             player.hand_cards.append(card_name)
         else:
@@ -211,7 +218,7 @@ def action_library(player):
         player.restockDrawIfNeeded()
         card_name = player.draw_stack[0]
         player.draw_stack.remove(card_name)
-        if 'Action' in all_cards[card_name]:
+        if 'Action' in all_cards[card_name].types:
             choice = player.perform_decision('Take or discard card {}?'.format(card_name), ['Take', 'Discard'], False)
             if choice == 'Discard':
                 player.played_stack.append(card_name)
@@ -231,7 +238,6 @@ base_cards = {
 
 optional_cards = {
     'Garden' : Card(['Point'], 4, count_points = lambda player : len(player.get_entire_deck()) // 10, count = 12),
-
     'Moat' : Card(['Action', 'Reaction'], 2, perform_action = lambda player: player.draw_cards(2), perform_reaction = lambda player: print('Invalidating attack!')),
     'Chappel' : Card(['Action'], 2, perform_action = action_chappel),
     'Cellar' : Card(['Action'], 2, perform_action = action_cellar), 

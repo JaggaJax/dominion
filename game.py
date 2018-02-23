@@ -9,10 +9,15 @@ all_cards = {}
 player_states = {}
 base_cards = {}
 optional_cards = {}
+
 exec(open("cards.py").read())
+#from cards import base_cards, optional_cards
+exec(open("interfaces.py").read())
+#from interfaces import HumanInterface 
+#from interfaces import SimpleBot 
 
 class PlayerState:
-    def __init__(self, hand_cards, draw_stack, played_stack, name):
+    def __init__(self, hand_cards, draw_stack, played_stack, name, interface):
         self.num_buys = 1
         self.num_money = 0
         self.num_actions = 1
@@ -22,23 +27,16 @@ class PlayerState:
         self.played_stack = played_stack
         self.active_cards = []
         self.name = name
+        self.interface = interface
 
     def perform_decision(self, message, options, allow_none = True):
-        #clear()
-        #self.print_state()
         print_state()
-
+        if allow_none:
+            options.append('None')
         if len(options) == 0:
             return 'None'
-        print(message)
-        options_string = ', '.join('{}: {}'.format(val + 1, i) for val, i in enumerate(options))
-        if allow_none:
-            options_string += ', 0: None'
-        print(options_string)
-        input_number = int(input())
-        if input_number not in range(1, len(options)+1):
-            return 'None' if allow_none else options[0] 
-        return options[input_number-1]
+        choice = self.interface.decide(message, options, 'DEFAULT')
+        return choice
         
     def play_card(self, card_name):
         self.num_actions -= 1
@@ -62,13 +60,17 @@ class PlayerState:
 
     def restockDrawIfNeeded(self):
         if len(self.draw_stack) == 0:
+            if len(self.played_stack) == 0:
+                return False
             self.draw_stack = self.played_stack[:]
             self.played_stack.clear()
             shuffle(self.draw_stack)
+        return True
 
     def draw_cards(self, num = 1):
         for _ in range(num):
-            self.restockDrawIfNeeded()
+            if not self.restockDrawIfNeeded():
+                return
             self.hand_cards.append(self.draw_stack[0])
             #print('Drew {} from stack.'.format(self.draw_stack[0]))
             del(self.draw_stack[0])
@@ -145,7 +147,7 @@ class PlayerState:
 
 turn_counter = 0
 
-def init_game(player_names):
+def init_game(players):
     global player_states
     global all_cards
     
@@ -155,17 +157,19 @@ def init_game(player_names):
     for card in random_cards:
         all_cards[card] = optional_cards[card]
 
-    if len(player_names) <= 2:
+    if len(players) <= 2:
         for card_name in ('Estate', 'Duchy', 'Province'):
             all_cards[card_name].count = 8
-    shuffle(player_names)
+    shuffle(players)
     draw_stack = ['Copper'] * 7 + ['Estate'] * 3
-    for player in player_names:
-        shuffle(draw_stack)
-        player_states[player] = PlayerState([], draw_stack[:], [], player)
-        player_states[player].draw_cards(5)
 
-print(all_cards)
+    for player in players:
+        player_name, Interface = player
+        shuffle(draw_stack)
+        h = Interface(player_name)
+        player_states[player_name] = PlayerState([], draw_stack[:], [], player_name, h)
+        h.set_player_state = player_states[player_name]
+        player_states[player_name].draw_cards(5)
 
 def check_for_end_condition():
     if all_cards['Province'].count == 0 or len([None for card in all_cards.values() if card.count == 3]) == 3:
@@ -175,25 +179,39 @@ def check_for_end_condition():
         return True
     return False
 
-def print_all_cards():
-    print(', '.join(['{} ({})'.format(card_name, card.count) for card_name, card in all_cards.items()]))
 
 from termcolor import colored
-def coloredCardsString(card_names, atribs = None):
+def coloredCardsString(card_names, atribs = None, print_card_count = False):
     string_list = []
     for card_name in card_names:
+        text = card_name
+        if print_card_count:
+            text += ' ({})'.format(all_cards[card_name].count)
+
         card_types = all_cards[card_name].types
         if 'Money' in card_types:
-            string_list.append(colored(card_name, 'yellow', attrs = atribs))
+            string_list.append(colored(text, 'yellow', attrs = atribs))
         elif 'Point' in card_types:
-            string_list.append(colored(card_name, 'green', attrs = atribs))
+            string_list.append(colored(text, 'green', attrs = atribs))
+        elif 'Attack' in card_types:
+            string_list.append(colored(text, 'red', attrs = atribs))
         else:
-            string_list.append(colored(card_name, 'red', attrs = atribs))
+            string_list.append(colored(text, 'magenta', attrs = atribs))
     return '[{}]'.format(' '.join(string_list))
+
+def print_all_cards():
+    base_point_cards = ['Estate', 'Duchy', 'Province']
+    base_money_cards = ['Copper', 'Silver', 'Gold']
+    optional_cards_in_game = set(all_cards.keys()) & set(optional_cards.keys())
+    all_cards_sorted = sorted(optional_cards_in_game, key = lambda card: all_cards[card].cost)
+    print(coloredCardsString(base_point_cards + base_money_cards, print_card_count = True))
+    print(coloredCardsString(all_cards_sorted, print_card_count = True))
 
 active_player = ''
 def print_state():
     clear()
+    print(colored('\t\t-------------Turn {}-------------'.format(turn_counter), 'red', attrs = ['bold']))
+    print(print_all_cards())
     for player in player_states.values():
         is_active = player.name == active_player 
         print(colored(player.name, 'red' if is_active else 'white'), '\tDraw:', coloredCardsString(player.draw_stack), ' Played:', coloredCardsString(player.played_stack))
@@ -222,5 +240,5 @@ def main_loop():
         game_over = do_single_turn()
         turn_counter += 1
 
-init_game(['Simon', 'Christin', 'Sarah'])
+init_game([('Simon', HumanInterface), ('Simpleton', SimpleBot), ('Moneyman', MoneyGrabber)] )
 main_loop()
